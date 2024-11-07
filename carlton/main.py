@@ -6,7 +6,7 @@ from openai import OpenAI
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.styles import Style
-from prompts import CREATE_SYSTEM_PROMPT
+from prompts import BASIC_CREATE_PROMPT
 from termcolor import colored
 
 # openai model
@@ -25,7 +25,7 @@ USER_COLOR = "light_blue"
 client = OpenAI(api_key=os.getenv("OPENAI_KEY"))
 
 # configure logging
-logging.basicConfig(filename="gen_code.log", level=logging.INFO, format="%(message)s")
+logging.basicConfig(filename="../logs/gen_code.log", level=logging.INFO, format="%(message)s")
 
 
 def clear_console():
@@ -46,7 +46,7 @@ def bot_listens(message: str) -> None:
 
 
 def generate_code(code_function):
-    prompt_string = CREATE_SYSTEM_PROMPT + f"\n\n{code_function}"
+    prompt_string = BASIC_CREATE_PROMPT + f"\n\n{code_function}"
 
     response = client.chat.completions.create(
         model=MODEL,
@@ -106,11 +106,8 @@ def main():
         )
 
         while True:
-            user_input = (
-                prompt("You: ", completer=completer, style=style, multiline=True)
-                .strip()
-                .lower()
-            )
+            # , multiline=True
+            user_input = prompt("You: ", completer=completer, style=style).strip().lower()
 
             if user_input in ["bye", "/exit", "/quit", "exit", "quit"]:
                 bot_says("Later on!")

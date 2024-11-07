@@ -14,4 +14,8 @@ models:
 
 logs:
   enabled: true
-  location: ../logs
+  location: "../logs"
+
+backup_edits:
+  enabled: false
+  location: "../backups"

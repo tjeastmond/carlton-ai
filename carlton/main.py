@@ -26,12 +26,12 @@ def read_yaml_file(file_path):
     return data
 
 
-def clear_console():
+def clear_console() -> None:
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def generate_code(code_function):
-    prompt_string = BASIC_CREATE_PROMPT + f"\n\n{code_function}"
+def generate_code(code_request):
+    prompt_string = BASIC_CREATE_PROMPT + f"\n\n{code_request}"
 
     response = client.chat.completions.create(
         model=MODEL,
@@ -48,12 +48,12 @@ def generate_code(code_function):
     return code
 
 
-def log_message(message):
+def log_message(message: str) -> None:
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logging.info(f"{current_time} - {message}")
 
 
-def save_code_to_file(code):
+def save_code_to_file(code: str) -> None:
     user_input = input(f"{ARROWS}Do you want to save this file? (y/n): ").strip().lower()
 
     if user_input in ["y", "yes"]:
@@ -77,12 +77,15 @@ def chat_input() -> str:
     return response
 
 
-def main():
+def main() -> None:
     try:
         while True:
             user_input = input(f"{ARROWS}").strip().lower()
 
-            if user_input in ["bye", "/exit", "/quit", "exit", "quit"]:
+            if not user_input:
+                continue
+
+            elif user_input in ["bye", "/exit", "/quit"]:
                 print()
                 break
 

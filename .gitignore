@@ -1,8 +1,25 @@
-__pycache__
-
+# garbage
 .DS_Store
+
+# python
 .venv
+dist
+output
+
+# ides
+.idea
+.vscode
+.zed
 
 # logs
 *.log
 logs
+
+# python cache files
+*.py[cod]
+__pycache__/
+*.pyo
+
+# environment variables
+.env
+.env.local

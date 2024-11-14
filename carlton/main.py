@@ -4,7 +4,7 @@ import sys
 from datetime import datetime
 
 from openai import OpenAI
-from prompts import BASIC_CREATE_PROMPT, CODE_REVIEW_PROMPT
+from prompts import APPLY_EDITS_PROMPT, BASIC_CREATE_PROMPT, CODE_REVIEW_PROMPT, SIMPLE_EDIT_INSTRUCTION_PROMPT
 from rich import print as rprint
 from rich.markdown import Markdown
 from termcolor import colored
@@ -26,14 +26,20 @@ def log_message(message: str) -> None:
     logging.info(f"{current_time} - {message}")
 
 
+def md(string: str) -> None:
+    rprint(Markdown(string))
+
+
 def is_binary_file(file_path: str) -> bool:
     if not os.path.isfile(file_path):
         return False
 
     with open(file_path, "rb") as f:
-        chunk = f.read(1024)
-        return b"\0" in chunk
-    return False
+        return b"\0" in f.read(1024)
+
+
+def file_safe_to_read(file_path: str) -> bool:
+    return os.path.isfile(file_path) and not is_binary_file(file_path)
 
 
 def read_files(file_paths: list):
@@ -61,7 +67,7 @@ def clear_console() -> None:
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def generate_code(code_request):
+def chat_with_ai(code_request):
     response = client.chat.completions.create(
         model=MODEL,
         messages=[
@@ -77,30 +83,13 @@ def generate_code(code_request):
     return code
 
 
-def save_code_to_file(code: str) -> None:
-    user_input = input(f"{ARROWS}Do you want to save this file? (y/n): ").strip().lower()
-
-    if user_input in ["y", "yes"]:
-        file_name = input(f"{ARROWS}Enter a file name: ").strip()
-
-        with open(file_name, "w") as file:
-            file.write(code)
-
-        print(f"Text saved to {file_name}.")
-
-    elif user_input in ["n", "no"]:
-        print()
-
-    else:
-        print("What? Try that again.")
-        save_code_to_file(code)
-
-
-def save_to_file(file_name: str, code: str) -> None:
-    with open(file_name, "w") as file:
+def save_to_file(file_path: str, code: str) -> None:
+    directory = os.path.dirname(file_path)
+    if directory and not os.path.exists(directory):
+        os.makedirs(directory)
+    with open(file_path, "w") as file:
         file.write(code)
-
-    print(colored(f"Text saved to {file_name}", "green"))
+    print(colored(f"Saved to {file_path}", "green"))
 
 
 def main() -> None:
@@ -122,10 +111,18 @@ def main() -> None:
                     continue
 
                 prompt_string = BASIC_CREATE_PROMPT + f"{user_instruction}"
-                code = generate_code(prompt_string)
-                last_response = code
+                last_response = chat_with_ai(prompt_string)
 
-                print(f"\n{code}\n")
+                print(colored("\nGenerated Code:\n", "green"))
+                print(f"\n{last_response}\n")
+
+                save = input(colored("Save? (Y/n): ", "yellow")).strip().lower()
+
+                if not save or save == "y":
+                    file_name = input(colored("Enter a file name: ", "yellow")).strip()
+                    save_to_file(file_name, last_response)
+                else:
+                    print(colored("Not saved", "red"))
 
             elif user_input.startswith("/review"):
                 file_name = user_input[7:].strip()
@@ -141,12 +138,39 @@ def main() -> None:
                 file_path = f"{cwd}/{file_name}"
                 context = create_context([file_path])
                 prompt_string = CODE_REVIEW_PROMPT + context
-                review = generate_code(prompt_string)
+                review = chat_with_ai(prompt_string)
                 last_response = review
 
-                print(prompt_string)
+                md(review)
 
-                rprint(Markdown(review))
+            elif user_input.startswith("/edit"):
+                file_name = user_input[5:].strip()
+
+                if not file_name or not file_safe_to_read(file_name):
+                    print(colored("\nPlease supply a valid file path\n", "red"))
+                    continue
+
+                file_path = f"{cwd}/{file_name}"
+                context = create_context([file_path])
+
+                instruction = input(colored("\nEdit instructions: ", "yellow"))
+                print()
+
+                prompt_string = SIMPLE_EDIT_INSTRUCTION_PROMPT + instruction + "\n\n" + context
+                last_responce = chat_with_ai(prompt_string)
+
+                rprint(Markdown(last_responce))
+
+                apply_edits = input(colored("\nApply edits? (Y/n): ", "yellow")).strip().lower()
+
+                if not apply_edits or apply_edits == "y":
+                    prompt_string = APPLY_EDITS_PROMPT + last_responce + "\n\n" + context
+                    last_response = chat_with_ai(prompt_string)
+                    save_to_file(file_path, last_response)
+                    print(colored("Edits applied\n", "green", attrs=["bold"]))
+                else:
+                    print(colored("Edits not applied\n", "red"))
+                    continue
 
             elif user_input.startswith("/save"):
                 if not last_response:
@@ -160,9 +184,6 @@ def main() -> None:
                     continue
 
                 save_to_file(f"{cwd}/{file_name}", last_response)
-
-            elif user_input in ["/edit"]:
-                pass
 
             elif user_input in ["/exit"]:
                 break
